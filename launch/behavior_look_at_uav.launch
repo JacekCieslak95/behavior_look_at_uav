@@ -1,0 +1,51 @@
+<!-- Launches: behavior_rotate -->
+<launch>
+
+  <!-- Basic data -->
+  <arg name="drone_id_namespace"                    default="drone1" />
+  <arg name="drone_id"                              default="1" />
+  <arg name="my_stack_directory"                    default="$(env AEROSTACK_STACK)" />
+  <arg name="behavior_name"                         default="LOOK_AT_UAV" />
+  <arg name="behavior_mode"                         default="" />
+
+  <!-- Custom topics & services-->
+  <arg name="estimated_pose_topic"                  default="estimated_pose" />
+  <arg name="controllers_topic"                     default="command/high_level" />
+  <arg name="rotation_angles_topic"                 default="rotation_angles" />
+  <arg name="estimated_speed_topic"                 default="estimated_speed"/>
+  <arg name="yaw_controller_str"                    default="droneControllerYawRefCommand" />
+  <arg name="service_topic_str"                     default="droneTrajectoryController/setControlMode" />
+  <arg name="drone_position_str"                    default="dronePositionRefs" />
+  <arg name="drone_yaw_to_look_str"                 default="droneYawToLook" />
+  <arg name="drone_yaw_ref"                         default="droneControllerYawRefCommand" />
+  <arg name="drone_control_mode"                    default="droneTrajectoryController/controlMode" />
+  <arg name="consult_belief"                         default="consult_belief"/>
+  <group ns="$(arg drone_id_namespace)">
+
+    <!-- Basic data -->
+    <param name="~drone_id_namespace"                    value="$(arg drone_id_namespace)" type="str" />
+    <param name="~drone_id"                              value="$(arg drone_id)" type="str" />
+    <param name="~my_stack_directory"                    value="$(arg my_stack_directory)" type="str" />
+    <param name="~behavior_name"                         value="$(arg behavior_name)" type="str" />
+    <param name="~behavior_mode"                         value="$(arg behavior_mode)" type="str" />
+
+    <!-- Custom topics & services -->
+    <param name="~estimated_pose_topic"                  value="$(arg estimated_pose_topic)" type="str" />
+    <param name="~controllers_topic"                     value="$(arg controllers_topic)" type="str" />
+    <param name="~rotation_angles_topic"                 value="$(arg rotation_angles_topic)" type="str" />
+    <param name="~estimated_speed_topic"                 value="$(arg estimated_speed_topic) " type="str"/>
+    <param name="~yaw_controller_str"                    value="$(arg yaw_controller_str) " type="str"/>
+    <param name="~service_topic_str"                     value="$(arg service_topic_str) " type="str"/>
+    <param name="~drone_position_str"                    value="$(arg drone_position_str) " type="str"/>
+    <param name="~drone_yaw_to_look_str"                 value="$(arg drone_yaw_to_look_str) " type="str"/>
+    <param name="~drone_yaw_ref"                         value="$(arg drone_yaw_ref) " type="str"/>
+    <param name="~drone_control_mode"                    value="$(arg drone_control_mode) " type="str"/>
+    <param name="~consult_belief"                         value="$(arg consult_belief) " type="str"/>
+    <node name="behavior_look_at_uav" pkg="behavior_look_at_uav" type="behavior_look_at_uav" output="screen"/>
+
+
+    <!--<test test-name="SequencerTest" pkg="behavior_move" type="SequencerTest"/>-->
+
+  </group>
+
+</launch>

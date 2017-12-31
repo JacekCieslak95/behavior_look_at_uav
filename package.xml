@@ -1,5 +1,5 @@
 <?xml version="1.0"?>
-<package format="2">
+<package>
   <name>behavior_look_at_uav</name>
   <version>0.0.0</version>
   <description>The behavior_look_at_uav package</description>
@@ -49,6 +49,19 @@
   <!-- Use doc_depend for packages you need only for building documentation: -->
   <!--   <doc_depend>doxygen</doc_depend> -->
   <buildtool_depend>catkin</buildtool_depend>
+  <build_depend>roscpp</build_depend>
+  <build_depend>std_msgs</build_depend>
+  <build_depend>drone_process</build_depend>
+  <build_depend>behavior_process</build_depend>
+  <build_depend>droneMsgsROS</build_depend>
+  <build_depend>yaml-cpp</build_depend>
+  <run_depend>roscpp</run_depend>
+  <run_depend>std_msgs</run_depend>
+  <run_depend>drone_process</run_depend>
+  <run_depend>behavior_process</run_depend>
+  <run_depend>droneMsgsROS</run_depend>
+  <run_depend>yaml-cpp</run_depend>
+
 
 
   <!-- The export tag contains other, unspecified, tags -->
