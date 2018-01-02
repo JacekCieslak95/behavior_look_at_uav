@@ -49,6 +49,7 @@ void BehaviorLookAtUAV::ownSetUp()
   private_nh.param<std::string>("drone_yaw_to_look_str",yaw_to_look_str, "droneYawToLook");
   private_nh.param<std::string>("drone_yaw_ref",drone_yaw_ref_str,"droneControllerYawRefCommand");
   private_nh.param<std::string>("drone_control_mode",drone_control_mode_str,"droneTrajectoryController/controlMode");
+  private_nh.param<std::string>("d_yaw",d_yaw_str,"command/dYaw");
   private_nh.param<std::string>("consult_belief",execute_query_srv,"consult_belief");
 }
 
@@ -131,7 +132,7 @@ void BehaviorLookAtUAV::ownRun()
   }
   std::cout << "yaw_diff = " << yaw_diff << " dYawCmd = " << dronedYaw.dYawCmd << std::endl;
 
-//  d_yaw_pub.publish(dronedYaw);
+  d_yaw_pub.publish(dronedYaw);
 }
 std::tuple<bool,std::string> BehaviorLookAtUAV::ownCheckSituation()
 {
