@@ -39,7 +39,6 @@ void BehaviorLookAtUAV::ownSetUp()
   private_nh.param<std::string>("drone_id_namespace", drone_id_namespace, "drone"+drone_id);
   private_nh.param<std::string>("my_stack_directory", my_stack_directory,
                   "~/workspace/ros/quadrotor_stack_catkin/src/quadrotor_stack");
-
   private_nh.param<std::string>("estimated_pose_topic", estimated_pose_str, "estimated_pose");
   private_nh.param<std::string>("controllers_topic", controllers_str, "command/high_level");
   private_nh.param<std::string>("rotation_angles_topic", rotation_angles_str, "rotation_angles");
@@ -67,25 +66,72 @@ void BehaviorLookAtUAV::ownStart()
   mode_service=node_handle.serviceClient<droneMsgsROS::setControlMode>(service_topic_str);
   drone_position_pub=node_handle.advertise< droneMsgsROS::dronePositionRefCommandStamped>(drone_position_str,1000);
   yaw_command_pub=node_handle.advertise<droneMsgsROS::droneYawRefCommand>(drone_yaw_ref_str,1000);
+  d_yaw_pub = node_handle.advertise<droneMsgsROS::droneDYawCmd>(d_yaw_str,1);
   query_client = node_handle.serviceClient <droneMsgsROS::ConsultBelief> (execute_query_srv);
 
   estimated_pose_msg = *ros::topic::waitForMessage<droneMsgsROS::dronePose>(estimated_pose_str, node_handle, ros::Duration(2));
+
+  //get arguments
+  std::string arguments=getArguments();
+  YAML::Node config_file = YAML::Load(arguments);
+
+  //get leader ID
+  if(config_file["droneID"].IsDefined()){
+    leaderID=config_file["droneID"].as<int>();
+  }
+  else{
+    setStarted(false);
+    return;
+  }
+  //get relative position to leader
+  if(config_file["angle"].IsDefined())
+  {
+    angle=config_file["angle"].as<double>()* M_PI/180.0;
+  }
+  else
+  {
+    angle=0.0;
+    std::cout<<"Could not read angle! Angle set to default: "<<angle<<std::endl;
+  }
+
+  //subsctibe leaders pose:
+  estimated_leader_pose_str = std::string("/drone") + std::to_string(leaderID) + std::string("/estimated_pose");
+  estimated_leader_pose_sub = node_handle.subscribe(estimated_leader_pose_str, 1000, &BehaviorLookAtUAV::estimatedLeaderPoseCallBack, this);
+  std::cout<<"subscribing:  "<<estimated_leader_pose_str<<std::endl;
   /*
-   * get arguments
-   *
    * enter speed_control mode, enter move
    */
+  droneMsgsROS::setControlMode mode;
+  mode.request.controlMode.command=mode.request.controlMode.SPEED_CONTROL;
+  mode_service.call(mode);
+
+  ros::topic::waitForMessage<droneMsgsROS::droneTrajectoryControllerControlMode>(
+    drone_control_mode_str, node_handle
+  );
+
+  droneMsgsROS::droneCommand msg;
+  msg.command = droneMsgsROS::droneCommand::MOVE;
+  controllers_pub.publish(msg);
 }
 
 void BehaviorLookAtUAV::ownRun()
 {
-  /*
-   * calculate yaw diff
-   *
-   * calculate speeds
-   *
-   * send speed in dYawCmd
-   */
+  target_position.yaw = fmod(estimated_leader_pose_msg.yaw + 2*M_PI, 2*M_PI);
+  float current_yaw = fmod(estimated_pose_msg.yaw + 2*M_PI, 2*M_PI);
+  float yaw_diff = fmod((target_position.yaw - current_yaw)+2*M_PI,2*M_PI);
+
+  droneMsgsROS::droneDYawCmd dronedYaw;
+
+  if(std::abs(yaw_diff) > 0.1 && std::abs(yaw_diff) < (2*M_PI - 0.1)){
+    dronedYaw.dYawCmd = (-1) * (fmod((yaw_diff/M_PI + 1),2)-1);
+    //calculate dYaw speed
+  }
+  else{
+    dronedYaw.dYawCmd = 0;
+  }
+  std::cout << "yaw_diff = " << yaw_diff << " dYawCmd = " << dronedYaw.dYawCmd << std::endl;
+
+//  d_yaw_pub.publish(dronedYaw);
 }
 std::tuple<bool,std::string> BehaviorLookAtUAV::ownCheckSituation()
 {
@@ -132,6 +178,9 @@ estimated_speed_msg=msg;
 void BehaviorLookAtUAV::estimatedPoseCallBack(const droneMsgsROS::dronePose& msg)
 {
 estimated_pose_msg=msg;
+}
+void BehaviorLookAtUAV::estimatedLeaderPoseCallBack(const droneMsgsROS::dronePose& msg){
+  estimated_leader_pose_msg=msg;
 }
 void BehaviorLookAtUAV::rotationAnglesCallback(const geometry_msgs::Vector3Stamped& msg)
 {

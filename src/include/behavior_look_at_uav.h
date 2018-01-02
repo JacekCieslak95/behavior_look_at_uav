@@ -42,11 +42,14 @@
 #include <droneMsgsROS/BehaviorEvent.h>
 #include <droneMsgsROS/dronePose.h>
 #include <droneMsgsROS/droneCommand.h>
+#include <droneMsgsROS/dronePitchRollCmd.h>
+//#include <droneMsgsROS/droneDAltitudeCmd.h>
+#include <droneMsgsROS/droneDYawCmd.h>
 #include <droneMsgsROS/askForModule.h>
 //Aerostack libraries
 #include <behavior_process.h>
 
-#include <math.h>
+#include <string>
 
 
 class BehaviorLookAtUAV:public BehaviorProcess
@@ -64,6 +67,7 @@ private:
   std::string my_stack_directory;
   std::string behavior_name_str;
   std::string estimated_pose_str;
+  std::string estimated_leader_pose_str;
   std::string rotation_angles_str;
   std::string controllers_str;
   std::string estimated_speed_str;
@@ -73,33 +77,47 @@ private:
   std::string yaw_to_look_str;
   std::string drone_yaw_ref_str;
   std::string drone_control_mode_str;
+  std::string d_yaw_str;
   std::string execute_query_srv;
+
   //Subscriber---
   ros::Subscriber estimated_pose_sub;
+  ros::Subscriber estimated_leader_pose_sub;
   ros::Subscriber estimated_speed_sub;
   ros::Subscriber rotation_angles_sub;
   ros::Publisher controllers_pub;
   ros::Publisher yaw_controller_pub;
   ros::Publisher drone_position_pub;
   ros::Publisher  yaw_command_pub;
+  ros::Publisher d_yaw_pub;
   ros::ServiceClient mode_service;
   ros::ServiceClient query_client;
   //Timer staticity_timer;
 
   droneMsgsROS::dronePose estimated_pose_msg;
+  droneMsgsROS::dronePose estimated_leader_pose_msg;
   droneMsgsROS::dronePose static_pose;
   droneMsgsROS::dronePose target_position;
   droneMsgsROS::droneSpeeds estimated_speed_msg;
   geometry_msgs::Vector3Stamped rotation_angles_msg;
-  float angle;
-  bool is_finished;
+
+
   void ownSetUp();
   void ownStart();
   void ownRun();
   void ownStop();
-  std::tuple<bool,std::string> ownCheckSituation();
+
+  bool is_finished;
+  float angle;
+  int leaderID;
+
+  std::tuple<bool, std::string> ownCheckSituation();
+
+  //CallBacks
   void estimatedPoseCallBack(const droneMsgsROS::dronePose&);
   void estimatedSpeedCallback(const droneMsgsROS::droneSpeeds&);
   void rotationAnglesCallback(const geometry_msgs::Vector3Stamped&);
+  void estimatedLeaderPoseCallBack(const droneMsgsROS::dronePose&);
+
 };
 #endif

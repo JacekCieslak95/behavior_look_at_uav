@@ -19,7 +19,8 @@
   <arg name="drone_yaw_to_look_str"                 default="droneYawToLook" />
   <arg name="drone_yaw_ref"                         default="droneControllerYawRefCommand" />
   <arg name="drone_control_mode"                    default="droneTrajectoryController/controlMode" />
-  <arg name="consult_belief"                         default="consult_belief"/>
+  <arg name="d_yaw"                                 default="command/dYaw" />
+  <arg name="consult_belief"                        default="consult_belief"/>
   <group ns="$(arg drone_id_namespace)">
 
     <!-- Basic data -->
@@ -40,7 +41,8 @@
     <param name="~drone_yaw_to_look_str"                 value="$(arg drone_yaw_to_look_str) " type="str"/>
     <param name="~drone_yaw_ref"                         value="$(arg drone_yaw_ref) " type="str"/>
     <param name="~drone_control_mode"                    value="$(arg drone_control_mode) " type="str"/>
-    <param name="~consult_belief"                         value="$(arg consult_belief) " type="str"/>
+    <param name="~d_yaw"                                 value="$(arg d_yaw) " type="str"/>
+    <param name="~consult_belief"                        value="$(arg consult_belief) " type="str"/>
     <node name="behavior_look_at_uav" pkg="behavior_look_at_uav" type="behavior_look_at_uav" output="screen"/>
 
 
