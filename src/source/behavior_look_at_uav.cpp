@@ -124,7 +124,7 @@ void BehaviorLookAtUAV::ownRun()
   droneMsgsROS::droneDYawCmd dronedYaw;
 
   if(std::abs(yaw_diff) > 0.1 && std::abs(yaw_diff) < (2*M_PI - 0.1)){
-    dronedYaw.dYawCmd = (-1) * (fmod((yaw_diff/M_PI + 1),2)-1);
+    dronedYaw.dYawCmd = (-1.5) * (fmod((yaw_diff/M_PI + 1),2)-1);
     //calculate dYaw speed
   }
   else{
