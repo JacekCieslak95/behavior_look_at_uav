@@ -39,10 +39,9 @@ Zachowanie umożliwiające utrzymanie obrotu (yaw) zadanego drona (opierając si
 	    
 		
           - behavior: LOOK_AT_UAV
-            incompatible_lists: [motion_behaviors, SETPOINT_BASED_FLIGHT_CONTROL]
+            incompatible_lists: [motion_behaviors]
+            capabilities: [SETPOINT_BASED_FLIGHT_CONTROL]
             arguments:
-              - argument: ANGLE
-                allowed_values: [-360,360]
               - argument: DRONE_ID
                 allowed_values: [0,10]
 		    
