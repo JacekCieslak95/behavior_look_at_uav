@@ -16,6 +16,7 @@
   <arg name="yaw_controller_str"                    default="droneControllerYawRefCommand" />
   <arg name="service_topic_str"                     default="droneTrajectoryController/setControlMode" />
   <arg name="drone_position_str"                    default="dronePositionRefs" />
+  <arg name="speed_topic"                           default="droneSpeedsRefs" />
   <arg name="drone_yaw_to_look_str"                 default="droneYawToLook" />
   <arg name="drone_yaw_ref"                         default="droneControllerYawRefCommand" />
   <arg name="drone_control_mode"                    default="droneTrajectoryController/controlMode" />

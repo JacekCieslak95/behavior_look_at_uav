@@ -31,6 +31,9 @@ BehaviorLookAtUAV::~BehaviorLookAtUAV()
 
 void BehaviorLookAtUAV::ownSetUp()
 {
+  safetyR0=0.75;
+  safetyR1=1.5;
+  speed = 5;
  std::cout << "ownSetup" << std::endl;
 
  ros::NodeHandle private_nh("~");
@@ -46,6 +49,8 @@ void BehaviorLookAtUAV::ownSetUp()
   private_nh.param<std::string>("yaw_controller_str",yaw_controller_str , "droneControllerYawRefCommand");
   private_nh.param<std::string>("service_topic_str",service_topic_str , "droneTrajectoryController/setControlMode");
   private_nh.param<std::string>("drone_position_str",drone_position_str , "dronePositionRefs");
+  private_nh.param<std::string>("speed_topic",speed_topic_str , "droneSpeedsRefs");
+
   private_nh.param<std::string>("drone_yaw_to_look_str",yaw_to_look_str, "droneYawToLook");
   private_nh.param<std::string>("drone_yaw_ref",drone_yaw_ref_str,"droneControllerYawRefCommand");
   private_nh.param<std::string>("drone_control_mode",drone_control_mode_str,"droneTrajectoryController/controlMode");
@@ -57,6 +62,7 @@ void BehaviorLookAtUAV::ownStart()
 {
   std::cout << "ownStart" << std::endl;
   is_finished = false;
+  state = 0;
 
   /*Initialize topics*/
   estimated_pose_sub = node_handle.subscribe(estimated_pose_str, 1000, &BehaviorLookAtUAV::estimatedPoseCallBack, this);
@@ -69,9 +75,12 @@ void BehaviorLookAtUAV::ownStart()
   yaw_command_pub=node_handle.advertise<droneMsgsROS::droneYawRefCommand>(drone_yaw_ref_str,1000);
   d_yaw_pub = node_handle.advertise<droneMsgsROS::droneDYawCmd>(d_yaw_str,1);
   query_client = node_handle.serviceClient <droneMsgsROS::ConsultBelief> (execute_query_srv);
+  speed_topic_pub=node_handle.advertise<droneMsgsROS::droneSpeeds>(speed_topic_str,1000);
 
   estimated_pose_msg = *ros::topic::waitForMessage<droneMsgsROS::dronePose>(estimated_pose_str, node_handle, ros::Duration(2));
-
+  target_position.x = estimated_pose_msg.x;
+  target_position.y = estimated_pose_msg.y;
+  target_position.z = estimated_pose_msg.z;
   //get arguments
   std::string arguments=getArguments();
   YAML::Node config_file = YAML::Load(arguments);
@@ -79,29 +88,19 @@ void BehaviorLookAtUAV::ownStart()
   //get leader ID
   if(config_file["droneID"].IsDefined()){
     leaderID=config_file["droneID"].as<int>();
+
+    estimated_leader_pose_str   = std::string("/drone") + std::to_string(leaderID) + std::string("/estimated_pose");
+    estimated_leader_speed_str  = std::string("/drone") + std::to_string(leaderID) + std::string("/estimated_speed");
+    estimated_leader_pose_sub = node_handle.subscribe(estimated_leader_pose_str, 1000, &BehaviorLookAtUAV::estimatedLeaderPoseCallBack, this);
+    estimated_leader_speed_sub = node_handle.subscribe(estimated_leader_speed_str, 1000, &BehaviorLookAtUAV::estimatedLeaderSpeedCallback, this);
+
   }
   else{
     setStarted(false);
     return;
   }
-  //get relative position to leader
-  if(config_file["angle"].IsDefined())
-  {
-    angle=config_file["angle"].as<double>()* M_PI/180.0;
-  }
-  else
-  {
-    angle=0.0;
-    std::cout<<"Could not read angle! Angle set to default: "<<angle<<std::endl;
-  }
-
   //subsctibe leaders pose:
-  estimated_leader_pose_str = std::string("/drone") + std::to_string(leaderID) + std::string("/estimated_pose");
-  estimated_leader_pose_sub = node_handle.subscribe(estimated_leader_pose_str, 1000, &BehaviorLookAtUAV::estimatedLeaderPoseCallBack, this);
-  std::cout<<"subscribing:  "<<estimated_leader_pose_str<<std::endl;
-  /*
-   * enter speed_control mode, enter move
-   */
+
   droneMsgsROS::setControlMode mode;
   mode.request.controlMode.command=mode.request.controlMode.SPEED_CONTROL;
   mode_service.call(mode);
@@ -117,22 +116,174 @@ void BehaviorLookAtUAV::ownStart()
 
 void BehaviorLookAtUAV::ownRun()
 {
-  target_position.yaw = fmod(estimated_leader_pose_msg.yaw + 2*M_PI, 2*M_PI);
-  float current_yaw = fmod(estimated_pose_msg.yaw + 2*M_PI, 2*M_PI);
-  float yaw_diff = fmod((target_position.yaw - current_yaw)+2*M_PI,2*M_PI);
+  switch(state){
+  case 0:{
+    std::cout << "state 0" << std::endl;
+    double intruderDistanceXY = sqrt(pow(estimated_leader_pose_msg.x-estimated_pose_msg.x,2)
+                           + pow(estimated_leader_pose_msg.y-estimated_pose_msg.y,2));
+    double distance_base = sqrt(pow(static_pose.x-estimated_pose_msg.x,2)
+                           + pow(static_pose.y-estimated_pose_msg.y,2));
+    if(intruderDistanceXY < safetyR0){
+      state = 1;
+      break;
+    }
+    else if (intruderDistanceXY < safetyR1){
+      state = 2;
+      break;
+    }
+    droneMsgsROS::droneSpeeds droneSpeed;
+    droneSpeed.dx   = 0.0;
+    droneSpeed.dy   = 0.0;
+    droneSpeed.dz   = 0.0;
+    if (distance_base > 0.1){
+      droneSpeed.dx = speed * (target_position.x - estimated_pose_msg.x) / distance_base;
+      droneSpeed.dy = speed * (target_position.y - estimated_pose_msg.y) / distance_base;
+      droneSpeed.dz = 1.0 * (target_position.z - estimated_pose_msg.z);
+    }
+    droneSpeed.dyaw = calculateDYaw();
 
-  droneMsgsROS::droneDYawCmd dronedYaw;
+    speed_topic_pub.publish(droneSpeed);
 
-  if(std::abs(yaw_diff) > 0.1 && std::abs(yaw_diff) < (2*M_PI - 0.1)){
-    dronedYaw.dYawCmd = (-1.5) * (fmod((yaw_diff/M_PI + 1),2)-1);
-    //calculate dYaw speed
+    break;
   }
-  else{
-    dronedYaw.dYawCmd = 0;
-  }
-  std::cout << "yaw_diff = " << yaw_diff << " dYawCmd = " << dronedYaw.dYawCmd << std::endl;
+  case 1:{
+    std::cout << "state 1" << std::endl;
+    double intruderDistanceXY = sqrt(pow(estimated_leader_pose_msg.x-estimated_pose_msg.x,2)
+                           + pow(estimated_leader_pose_msg.y-estimated_pose_msg.y,2));
+    if(intruderDistanceXY > safetyR1){ // start working in normal way
+      state = 0;
+      break;
+    }
+    else if(intruderDistanceXY > safetyR0){ // stop movement
+      state = 2;
+      break;
+    }
 
-  d_yaw_pub.publish(dronedYaw);
+    float yIntruderEstimate = estimated_leader_pose_msg.y + (estimated_leader_speed_msg.dy/estimated_leader_speed_msg.dx) *
+        (estimated_pose_msg.x - estimated_leader_pose_msg.x);
+    float droneDirection;
+    float temp_dx, temp_dy;
+    droneMsgsROS::droneSpeeds droneSpeed;
+
+    if (estimated_leader_speed_msg.dy > 0.1 && estimated_leader_speed_msg.dx > 0.1){
+      droneDirection = (-1) * (estimated_leader_speed_msg.dx/estimated_leader_speed_msg.dy);
+      if (yIntruderEstimate > estimated_pose_msg.y){
+        temp_dy = (-1) * std::abs(droneDirection);
+      }
+      else{
+        temp_dy = std::abs(droneDirection);
+      }
+      temp_dx = temp_dy / droneDirection;
+      float temp_length = sqrt(pow(temp_dx,2) + pow(temp_dy,2));
+      droneSpeed.dx = speed * temp_dx/temp_length;
+      droneSpeed.dy = speed * temp_dy/temp_length;
+    }
+    else if (estimated_leader_speed_msg.dy < 0.1 && estimated_leader_speed_msg.dx < 0.1){
+      float targetYaw = atan2(target_position.y-estimated_pose_msg.y,target_position.x-estimated_pose_msg.x);
+      float intruderYaw = atan2(estimated_leader_pose_msg.y-estimated_pose_msg.y,estimated_leader_pose_msg.x-estimated_pose_msg.x);
+      float movementYaw;
+      if (std::abs(targetYaw - intruderYaw) < M_PI/2){
+        if (targetYaw - intruderYaw > 0 ) movementYaw = targetYaw + (M_PI/2 - std::abs(targetYaw - intruderYaw));
+        else movementYaw = targetYaw - (M_PI/2 - std::abs(targetYaw - intruderYaw));
+      }
+      else movementYaw = targetYaw;
+      droneSpeed.dx = speed * cos(movementYaw);
+      droneSpeed.dy = speed * sin(movementYaw);
+      }
+    else if (estimated_leader_speed_msg.dy < 0.1){
+      if (estimated_leader_pose_msg.x < estimated_pose_msg.x){
+        droneSpeed.dx = speed;
+      }
+      else{
+        droneSpeed.dx = (-1.0) * speed;
+      }
+      droneSpeed.dy = 0.0;
+    }
+    else{
+      if (estimated_leader_pose_msg.y < estimated_pose_msg.y){
+        droneSpeed.dy = speed;
+      }
+      else{
+        droneSpeed.dy = (-1.0) * speed;
+      }
+      droneSpeed.dx = 0.0;
+    }
+
+    droneSpeed.dz = 0.0;
+    droneSpeed.dyaw = calculateDYaw();
+    speed_topic_pub.publish(droneSpeed);
+    break;
+
+  }
+  case 2:{
+    std::cout << "state 2" << std::endl;
+    double intruderDistanceXY = sqrt(pow(estimated_leader_pose_msg.x-estimated_pose_msg.x,2)
+                           + pow(estimated_leader_pose_msg.y-estimated_pose_msg.y,2));
+    if(intruderDistanceXY < safetyR0){ // start escape
+      state = 1;
+      break;
+    }
+    else if(intruderDistanceXY > safetyR1){ // start movement in normal way
+      state = 0;
+      break;
+    }
+    float yIntruderEstimate = estimated_leader_pose_msg.y + (estimated_leader_speed_msg.dy/estimated_leader_speed_msg.dx) *
+        (estimated_pose_msg.x - estimated_leader_pose_msg.x);
+    float droneDirection;
+    float escapeSpeed = speed * (1 - 0.5 * (intruderDistanceXY - safetyR0)/(safetyR1 - safetyR0));
+    float temp_dx, temp_dy;
+    droneMsgsROS::droneSpeeds droneSpeed;
+
+    if (estimated_leader_speed_msg.dy > 0.1 && estimated_leader_speed_msg.dx > 0.1){
+      droneDirection = (-1) * (estimated_leader_speed_msg.dx/estimated_leader_speed_msg.dy);
+      if (yIntruderEstimate > estimated_pose_msg.y){
+        temp_dy = (-1) * std::abs(droneDirection);
+      }
+      else{
+        temp_dy = std::abs(droneDirection);
+      }
+      temp_dx = temp_dy / droneDirection;
+      float temp_length = sqrt(pow(temp_dx,2) + pow(temp_dy,2));
+      droneSpeed.dx = escapeSpeed * temp_dx/temp_length;
+      droneSpeed.dy = escapeSpeed * temp_dy/temp_length;
+    }
+    else if (estimated_leader_speed_msg.dy < 0.1 && estimated_leader_speed_msg.dx < 0.1){
+      float targetYaw = atan2(target_position.y-estimated_pose_msg.y,target_position.x-estimated_pose_msg.x);
+      float intruderYaw = atan2(estimated_leader_pose_msg.y-estimated_pose_msg.y,estimated_leader_pose_msg.x-estimated_pose_msg.x);
+      float movementYaw;
+      if (std::abs(targetYaw - intruderYaw) < M_PI/2){
+        if (targetYaw - intruderYaw > 0 ) movementYaw = targetYaw + (M_PI/2 - std::abs(targetYaw - intruderYaw));
+        else movementYaw = targetYaw - (M_PI/2 - std::abs(targetYaw - intruderYaw));
+      }
+      else movementYaw = targetYaw;
+      droneSpeed.dx = escapeSpeed * cos(movementYaw);
+      droneSpeed.dy = escapeSpeed * sin(movementYaw);
+      }
+    else if (estimated_leader_speed_msg.dy < 0.1){
+      if (estimated_leader_pose_msg.x < estimated_pose_msg.x){
+        droneSpeed.dx = escapeSpeed;
+      }
+      else{
+        droneSpeed.dx = (-1.0) * escapeSpeed;
+      }
+      droneSpeed.dy = 0.0;
+    }
+    else{
+      if (estimated_leader_pose_msg.y < estimated_pose_msg.y){
+        droneSpeed.dy = speed;
+      }
+      else{
+        droneSpeed.dy = (-1.0) * escapeSpeed;
+      }
+      droneSpeed.dx = 0.0;
+    }
+
+    droneSpeed.dz = 0.0;
+    droneSpeed.dyaw = calculateDYaw();
+    speed_topic_pub.publish(droneSpeed);
+    break;
+  }
+  }
 }
 std::tuple<bool,std::string> BehaviorLookAtUAV::ownCheckSituation()
 {
@@ -172,6 +323,29 @@ void BehaviorLookAtUAV::ownStop()
   // staticity_timer.stop();
 }
 
+
+float BehaviorLookAtUAV::calculateDYaw(){
+
+  float dYaw;
+  float setpoint_yaw=atan2(estimated_leader_pose_msg.y-estimated_pose_msg.y,estimated_leader_pose_msg.x-estimated_pose_msg.x);
+  float current_yaw = fmod(estimated_pose_msg.yaw + 2*M_PI, 2*M_PI);
+  float yaw_diff = fmod((setpoint_yaw - current_yaw)+2*M_PI,2*M_PI);
+
+  if(std::abs(yaw_diff) > 0.1 && std::abs(yaw_diff) < (2*M_PI - 0.1)){
+    dYaw = (-2.0) * (fmod((yaw_diff/M_PI + 1),2)-1);
+    //calculate dYaw speed
+  }
+  else{
+    dYaw = 0;
+  }
+
+  std::cout << "setpoint_yaw = " << setpoint_yaw * 180/M_PI << std::endl;
+  std::cout << "current_yaw = " << current_yaw * 180/M_PI<< std::endl;
+  std::cout << "yaw_diff = " << yaw_diff * 180/M_PI<< std::endl;
+  std::cout << "dYaw = " << dYaw << std::endl;
+  return dYaw;
+}
+
 void BehaviorLookAtUAV::estimatedSpeedCallback(const droneMsgsROS::droneSpeeds& msg)
 {
 estimated_speed_msg=msg;
@@ -186,4 +360,7 @@ void BehaviorLookAtUAV::estimatedLeaderPoseCallBack(const droneMsgsROS::dronePos
 void BehaviorLookAtUAV::rotationAnglesCallback(const geometry_msgs::Vector3Stamped& msg)
 {
 rotation_angles_msg=msg;
+}
+void BehaviorLookAtUAV::estimatedLeaderSpeedCallback(const droneMsgsROS::droneSpeeds& msg){
+  estimated_leader_speed_msg=msg;
 }
