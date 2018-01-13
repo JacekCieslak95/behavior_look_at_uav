@@ -118,7 +118,6 @@ void BehaviorLookAtUAV::ownRun()
 {
   switch(state){
   case 0:{
-    std::cout << "state 0" << std::endl;
     double intruderDistanceXY = sqrt(pow(estimated_leader_pose_msg.x-estimated_pose_msg.x,2)
                            + pow(estimated_leader_pose_msg.y-estimated_pose_msg.y,2));
     double distance_base = sqrt(pow(static_pose.x-estimated_pose_msg.x,2)
@@ -147,7 +146,6 @@ void BehaviorLookAtUAV::ownRun()
     break;
   }
   case 1:{
-    std::cout << "state 1" << std::endl;
     double intruderDistanceXY = sqrt(pow(estimated_leader_pose_msg.x-estimated_pose_msg.x,2)
                            + pow(estimated_leader_pose_msg.y-estimated_pose_msg.y,2));
     if(intruderDistanceXY > safetyR1){ // start working in normal way
@@ -216,7 +214,6 @@ void BehaviorLookAtUAV::ownRun()
 
   }
   case 2:{
-    std::cout << "state 2" << std::endl;
     double intruderDistanceXY = sqrt(pow(estimated_leader_pose_msg.x-estimated_pose_msg.x,2)
                            + pow(estimated_leader_pose_msg.y-estimated_pose_msg.y,2));
     if(intruderDistanceXY < safetyR0){ // start escape
@@ -338,11 +335,6 @@ float BehaviorLookAtUAV::calculateDYaw(){
   else{
     dYaw = 0;
   }
-
-  std::cout << "setpoint_yaw = " << setpoint_yaw * 180/M_PI << std::endl;
-  std::cout << "current_yaw = " << current_yaw * 180/M_PI<< std::endl;
-  std::cout << "yaw_diff = " << yaw_diff * 180/M_PI<< std::endl;
-  std::cout << "dYaw = " << dYaw << std::endl;
   return dYaw;
 }
 
