@@ -1,4 +1,4 @@
-# Behavior BehaviorLookAtUAV
+# Behavior LookAtUAV
 Paczka tworzy behavior używany przez Aerostack (oprogramowanie grupy Vision4UAV: https://github.com/Vision4UAV/Aerostack)
 Zachowanie umożliwiające utrzymanie obrotu (yaw) zadanego drona (opierając się na jego pozycji).
 ### Instalacja ###
