@@ -88,7 +88,11 @@ void BehaviorLookAtUAV::ownStart()
   //get leader ID
   if(config_file["droneID"].IsDefined()){
     leaderID=config_file["droneID"].as<int>();
-
+    if (leaderID == atoi(drone_id.c_str())){ //check if is not following itself
+      std::cout<<"Can not avoid itself!" << std::endl;
+      setStarted(false);
+      return;
+    }
     estimated_leader_pose_str   = std::string("/drone") + std::to_string(leaderID) + std::string("/estimated_pose");
     estimated_leader_speed_str  = std::string("/drone") + std::to_string(leaderID) + std::string("/estimated_speed");
     estimated_leader_pose_sub = node_handle.subscribe(estimated_leader_pose_str, 1000, &BehaviorLookAtUAV::estimatedLeaderPoseCallBack, this);
