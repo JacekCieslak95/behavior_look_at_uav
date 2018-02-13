@@ -1,6 +1,9 @@
 # Behavior LookAtUAV
-Paczka tworzy behavior używany przez Aerostack (oprogramowanie grupy Vision4UAV: https://github.com/Vision4UAV/Aerostack)
-Zachowanie umożliwiające utrzymanie obrotu (yaw) zadanego drona (opierając się na jego pozycji).
+
+Read in [English]
+
+Paczka tworzy behavior używany przez [Aerostack] (oprogramowanie grupy [Vision4UAV])
+Zachowanie umożliwiające utrzymanie obrotu (Yaw) umożliwiającego obserwację zadanego drona (opierając się na jego pozycji).
 ### Instalacja ###
 1. Pliki niniejszego repozytorium należy umieścić w folderze 
     `~/workspace/ros/aerostack_catkin_ws/src/`
@@ -47,15 +50,19 @@ Zachowanie umożliwiające utrzymanie obrotu (yaw) zadanego drona (opierając si
 		    
 				
 ##### UWAGA! Wcięcia powinny być realizowane przez spacje, nie tabulatory!
-##### UWAGA! Zachowanie nie będzie działać, jeśli jednocześnie uruchomione jest inne zachowanie wykorzysyujące DroneTrajectoryController
 
 ### Przyjmowane argumenty ###
 Behavior przyjmuje argumenty:
     
     droneID=x
     
-Jest to numer drona, za którym dron będzie podążał
-    
-    angle=y
-    
-Jest to kąt wzgędem obrotu (yaw) danego drona
+Jest to numer obserowanego drona.
+
+Przykład wywołania:
+`result = api.activateBehavior('LOOK_AT_UAV', droneID=2)`
+
+[//]: # (These are reference links used in the body of this note and get stripped out when the markdown processor does its job. There is no need to format nicely because it shouldn't be seen. Thanks SO - http://stackoverflow.com/questions/4823468/store-comments-in-markdown-syntax)
+   [Polish]: <https://github.com/JacekCieslak95/behavior_look_at_uav/blob/master/README.md>
+   [English]: <https://github.com/JacekCieslak95/behavior_look_at_uav/blob/master/README_en.md>
+   [Aerostack]: <https://github.com/Vision4UAV/Aerostack>
+   [Vision4UAV]: <https://github.com/Vision4UAV>
